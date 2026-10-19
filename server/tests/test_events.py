@@ -132,27 +132,26 @@ def test_events_truncation_and_missing_rotation(stats_config):
     assert rows(config, "shelf_total") == [("1000", 1)]
 
 
-def test_cursor_migration_preserves_download_offset_and_adds_events(stats_config):
+def test_cursor_migration_keeps_old_download_cursor_and_adds_events(stats_config):
     config = stats_config
     config.data_dir.mkdir()
     downloads = config.log_dir / "files.log"
-    consumed = log_line(config)
-    downloads.write_bytes(consumed + log_line(config, ip="203.0.113.8"))
+    downloads.write_bytes(b"1729123456.789|203.0.113.7|/files/1000/1.epub|200\n")
     events = config.log_dir / "events.log"
-    events.write_bytes(event())
+    events.write_bytes(event() + log_line(config))
     with closing(sqlite3.connect(config.stats_path)) as connection:
         connection.executescript(SCHEMA.replace("CHECK(id IN (1,2))", "CHECK(id=1)"))
         connection.execute("DROP TABLE shelf")
         connection.execute("DROP TABLE shelf_total")
-        connection.execute("INSERT INTO cursor VALUES (1, ?, ?)", (downloads.stat().st_ino, len(consumed)))
+        connection.execute("INSERT INTO cursor VALUES (1, ?, ?)", (downloads.stat().st_ino, 7))
         connection.execute("INSERT INTO total VALUES ('1000', 1)")
         connection.execute("INSERT INTO meta VALUES ('stats_version', '7')")
         connection.commit()
     result = runner(config).run_once()
     assert result.added == result.shelf_changes == 1 and result.lines == 2
     cursors = {row[0]: row[1:] for row in rows(config, "cursor")}
-    assert cursors == {1: (downloads.stat().st_ino, downloads.stat().st_size),
-                       2: (events.stat().st_ino, events.stat().st_size)}
+    # The download log is no longer read; its old cursor stays as it was.
+    assert cursors == {1: (downloads.stat().st_ino, 7), 2: (events.stat().st_ino, events.stat().st_size)}
     assert rows(config, "total") == [("1000", 2)] and rows(config, "shelf_total") == [("1000", 1)]
     assert dict(rows(config, "meta"))["stats_version"] == "8"
     assert runner(config).run_once().lines == 0
@@ -161,10 +160,9 @@ def test_cursor_migration_preserves_download_offset_and_adds_events(stats_config
             connection.execute("INSERT INTO cursor VALUES (3, 0, 0)")
 
 
-def test_downloads_events_and_cursors_roll_back_together(stats_config, monkeypatch):
+def test_reads_shelf_changes_and_cursor_roll_back_together(stats_config, monkeypatch):
     config = stats_config
-    (config.log_dir / "files.log").write_bytes(log_line(config))
-    (config.log_dir / "events.log").write_bytes(event())
+    (config.log_dir / "events.log").write_bytes(log_line(config) + event())
     original = module.increment_version
 
     def fail(connection):

@@ -1,6 +1,7 @@
 import 'package:anx_reader/l10n/generated/L10n.dart';
 import 'package:anx_reader/monogatari/ui.dart';
 import 'package:anx_reader/page/bookstore/store_catalog_page.dart';
+import 'package:anx_reader/page/home_page.dart';
 import 'package:anx_reader/page/bookstore/store_category_page.dart';
 import 'package:anx_reader/page/bookstore/store_completed_page.dart';
 import 'package:anx_reader/page/bookstore/store_discover_page.dart';
@@ -24,6 +25,9 @@ class BookstorePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = L10n.of(context);
+    ref.listen(homeTabProvider, (_, tab) {
+      if (tab == 1) refreshStoreHomeIfStale(ref.read(storeHomeRefreshProvider.notifier));
+    });
     final home = ref.watch(storeHomeProvider);
     final accent = Theme.of(context).colorScheme.primary;
     final header = SafeArea(

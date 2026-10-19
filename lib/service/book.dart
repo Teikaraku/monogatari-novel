@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -18,6 +19,7 @@ import 'package:anx_reader/providers/sync.dart';
 import 'package:anx_reader/providers/iap.dart';
 import 'package:anx_reader/providers/book_list.dart';
 import 'package:anx_reader/providers/toc_search.dart';
+import 'package:anx_reader/providers/bookstore.dart';
 import 'package:anx_reader/service/bookstore/store_library.dart';
 import 'package:anx_reader/service/convert_to_epub/txt/convert_from_txt.dart';
 import 'package:anx_reader/service/md5_service.dart';
@@ -381,6 +383,8 @@ Future<void> pushToReadingPage(
     }
   }
   if (await _settleOpenReader(book, hasTarget: cfi != null || href != null)) return;
+  final storeKey = book.storeKey;
+  if (storeKey != null) unawaited(StoreLibrary.instance.reportRead(storeKey.split('/').first));
   container.read(aiChatProvider.notifier).clear();
   final initialThemes = await themeDao.selectThemes();
   container.read(currentReadingProvider.notifier).start(
@@ -412,6 +416,7 @@ Future<void> pushToReadingPage(
     currentReading.finish();
     chapterContentBridge.state = null;
     tocSearch.clear();
+    refreshStoreHomeIfStale(container.read(storeHomeRefreshProvider.notifier));
     AnxLog.info('Pop successfully ReadingPage: ${book.title}');
   });
 }

@@ -231,6 +231,20 @@ class StoreLibrary {
     }
   }
 
+  /// Counts this install as a reader of [storeId] today: once per book per day, so reopening a
+  /// downloaded volume counts as reading too. Marked locally only after the event was sent.
+  Future<void> reportRead(String storeId) async {
+    if (!StoreConfig.configured) return;
+    const key = 'mg.readReported';
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    bool reported(List<String>? saved) => saved != null && saved.isNotEmpty && saved.first == today && saved.contains(storeId);
+    if (reported(Prefs().prefs.getStringList(key))) return;
+    if (!await BookstoreApi.instance.reportRead(storeId, install: _installId())) return;
+    final saved = Prefs().prefs.getStringList(key);
+    final books = saved != null && saved.isNotEmpty && saved.first == today ? saved.skip(1).toSet() : <String>{};
+    await Prefs().prefs.setStringList(key, [today, ...books..add(storeId)]);
+  }
+
   /// A random per-install id for anonymous chart events; it identifies nothing else.
   String _installId() {
     const key = 'mg.installId';

@@ -17,9 +17,11 @@ from functools import lru_cache
 from .config import Config
 
 logger = logging.getLogger(__name__)
-URI = re.compile(r"/files/(\d{1,10})/(\d{1,4})\.epub")
 BOOK_ID = re.compile(r"\d{1,10}")
 INSTALL = re.compile(rb"[A-Za-z0-9-]{8,64}")
+# Readers are installs that opened a volume that day; shelf changes feed the favourites board.
+READ = b"read:open"
+SHELF = (b"shelf:add", b"shelf:remove")
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS cursor(id INTEGER PRIMARY KEY CHECK(id IN (1,2)), inode INTEGER, offset INTEGER);
 CREATE TABLE IF NOT EXISTS salt(day TEXT PRIMARY KEY, salt TEXT);
@@ -101,7 +103,6 @@ class Stats:
             connection.executescript(SCHEMA)
             connection.execute("BEGIN IMMEDIATE")
             migrate_cursor(connection)
-            salts = {day: salt.encode("ascii") for day, salt in connection.execute("SELECT day, salt FROM salt")}
             daily = Counter()
             total = Counter()
             recent = set()
@@ -112,48 +113,6 @@ class Stats:
             def log_day(second):
                 return datetime.fromtimestamp(second, tz).date().isoformat()
 
-            def consume(stream, offset):
-                stream.seek(offset)
-                for line in stream:
-                    if not line.endswith(b"\n"):
-                        break
-                    offset += len(line)
-                    result.lines += 1
-                    fields = line[:-1].split(b"|")
-                    if len(fields) != 4 or fields[3] not in (b"200", b"206"):
-                        continue
-                    try:
-                        match = URI.fullmatch(fields[2].decode("utf-8"))
-                    except UnicodeError:
-                        continue
-                    if match is None:
-                        continue
-                    try:
-                        day = log_day(math.floor(float(fields[0])))
-                    except (ValueError, OverflowError, OSError, UnicodeError):
-                        continue
-                    book_id = match[1]
-                    salt = salts.get(day)
-                    if salt is None:
-                        value = secrets.token_hex(16)
-                        connection.execute("INSERT INTO salt VALUES (?, ?)", (day, value))
-                        salt = value.encode("ascii")
-                        salts[day] = salt
-                    reader = hashlib.sha1(salt + fields[1]).hexdigest()[:16]
-                    key = day, book_id, reader
-                    if key in recent:
-                        continue
-                    if len(recent) >= 8192:
-                        recent.clear()
-                    recent.add(key)
-                    seen_cursor.execute("INSERT OR IGNORE INTO seen VALUES (?, ?, ?)", key)
-                    if seen_cursor.rowcount == 1:
-                        daily[day, book_id] += 1
-                        total[book_id] += 1
-                        result.added += 1
-                return offset
-
-            consume_log(connection, self.config.log_dir, "files.log", 1, consume)
             shelf_totals = dict(connection.execute("SELECT book_id, count FROM shelf_total"))
             changed_shelves = set()
             shelf_cursor = connection.cursor()
@@ -177,7 +136,7 @@ class Stats:
                     offset += len(line)
                     result.lines += 1
                     fields = line[:-1].split(b"|")
-                    if (len(fields) != 4 or fields[1] not in (b"shelf:add", b"shelf:remove")
+                    if (len(fields) != 4 or (fields[1] != READ and fields[1] not in SHELF)
                             or INSTALL.fullmatch(fields[3]) is None):
                         continue
                     try:
@@ -185,6 +144,23 @@ class Stats:
                     except UnicodeError:
                         continue
                     if BOOK_ID.fullmatch(book_id) is None:
+                        continue
+                    if fields[1] == READ:
+                        try:
+                            day = log_day(math.floor(float(fields[0])))
+                        except (ValueError, OverflowError, OSError, UnicodeError):
+                            continue
+                        key = day, book_id, installer_hash(fields[3])
+                        if key in recent:
+                            continue
+                        if len(recent) >= 8192:
+                            recent.clear()
+                        recent.add(key)
+                        seen_cursor.execute("INSERT OR IGNORE INTO seen VALUES (?, ?, ?)", key)
+                        if seen_cursor.rowcount == 1:
+                            daily[day, book_id] += 1
+                            total[book_id] += 1
+                            result.added += 1
                         continue
                     key = installer_hash(fields[3]), book_id
                     adding = fields[1] == b"shelf:add"

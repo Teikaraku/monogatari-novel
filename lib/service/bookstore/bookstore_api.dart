@@ -249,6 +249,23 @@ class BookstoreApi {
         'limit': limit,
       });
 
+  /// An anonymous "opened this book" event for the popularity charts; returns whether it was sent.
+  Future<bool> reportRead(String bookId, {required String install}) async {
+    if (!StoreConfig.isConfigured(_baseUrl)) return false;
+    try {
+      await _dio.get<List<int>>('/api/v1/events', queryParameters: {
+        'type': 'read',
+        'action': 'open',
+        'book': bookId,
+        'install': install,
+      });
+      return true;
+    } catch (e) {
+      AnxLog.info('Bookstore read event not sent: $e');
+      return false;
+    }
+  }
+
   /// Anonymous shelf events feed the favourites chart; failures are ignored.
   Future<void> reportShelf(String bookId, {required bool added, required String install}) async {
     if (!StoreConfig.isConfigured(_baseUrl)) return;

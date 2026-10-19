@@ -7,11 +7,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Bumped by pull to refresh; the home stream then revalidates with the server.
 final storeHomeRefreshProvider = StateProvider<int>((ref) => 0);
 
+DateTime _storeHomeCheckedAt = DateTime.now();
+
 /// The bookstore home stays alive with its tab: cached first, then revalidated.
 final storeHomeProvider = StreamProvider<StoreHome>((ref) {
   final refresh = ref.watch(storeHomeRefreshProvider);
+  _storeHomeCheckedAt = DateTime.now();
   return BookstoreApi.instance.home(revalidate: refresh > 0);
 });
+
+/// Revalidates the home (rankings, picks) when it was last checked a while ago; the server answers
+/// 304 when nothing changed. Called on entering the bookstore tab and on leaving the reader.
+void refreshStoreHomeIfStale(StateController<int> refresh) {
+  if (DateTime.now().difference(_storeHomeCheckedAt) < const Duration(seconds: 45)) return;
+  refresh.state++;
+}
 
 final storeBookProvider = StreamProvider.autoDispose.family<StoreBookDetail, String>(
   (ref, id) => BookstoreApi.instance.book(id),

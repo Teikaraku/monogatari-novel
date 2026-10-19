@@ -13,7 +13,7 @@ def test_defaults(monkeypatch):
     assert config.index_interval == 600 and config.cover_workers == 4
     assert config.timezone == "Asia/Shanghai" and config.public_base == "" and config.reload_check_seconds == 5
     assert config.curation_dir == Path("/curation") and config.log_dir == Path("/nginxlog")
-    assert config.stats_interval == config.rank_reload_seconds == 300
+    assert config.stats_interval == 60 and config.rank_reload_seconds == 15
 
 
 def test_environment(monkeypatch, tmp_path):

@@ -18,8 +18,8 @@ class Config:
     )
     curation_dir: Path = field(default_factory=lambda: Path(os.getenv("CURATION_DIR", "/curation")))
     log_dir: Path = field(default_factory=lambda: Path(os.getenv("LOG_DIR", "/nginxlog")))
-    stats_interval: float = field(default_factory=lambda: float(os.getenv("STATS_INTERVAL", "300")))
-    rank_reload_seconds: float = field(default_factory=lambda: float(os.getenv("RANK_RELOAD_SECONDS", "300")))
+    stats_interval: float = field(default_factory=lambda: float(os.getenv("STATS_INTERVAL", "60")))
+    rank_reload_seconds: float = field(default_factory=lambda: float(os.getenv("RANK_RELOAD_SECONDS", "15")))
 
     def __post_init__(self):
         if self.files_link_root is None:

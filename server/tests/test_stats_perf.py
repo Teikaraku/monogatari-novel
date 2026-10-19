@@ -18,13 +18,12 @@ def test_million_log_lines(tmp_path, pytestconfig):
     logs.mkdir()
     config = Config(data_dir=tmp_path / "data", log_dir=logs)
     stamp = int(datetime(2026, 10, 17, 12, tzinfo=config.tz).timestamp())
-    with (logs / "files.log").open("wb") as stream:
+    with (logs / "events.log").open("wb") as stream:
         for i in range(1_000_000):
-            ip = f"10.{i >> 16}.{(i >> 8) & 255}.{i & 255}"
-            stream.write(f"{stamp + i // 1000}.{i % 1000:03d}|{ip}|/files/{i % 5101 + 1}/{i % 4 + 1}.epub|200\n".encode())
+            stream.write(f"{stamp + i // 1000}.{i % 1000:03d}|read:open|{i % 5101 + 1}|install-{i:08d}\n".encode())
     result = Stats(config, date_provider=lambda: "2026-10-17").run_once()
     metrics = getattr(pytestconfig, "performance_metrics", {})
-    metrics["stats 1,000,000 valid lines / distinct readers"] = f"{result.elapsed:.6f} s (< 10 s)"
+    metrics["stats 1,000,000 read events / distinct readers"] = f"{result.elapsed:.6f} s (< 10 s)"
     pytestconfig.performance_metrics = metrics
     assert result.lines == result.added == 1_000_000
     connection = sqlite3.connect(config.stats_path)
