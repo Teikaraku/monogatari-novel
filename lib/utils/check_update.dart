@@ -2,8 +2,10 @@ import 'dart:io';
 
 import 'package:anx_reader/l10n/generated/L10n.dart';
 import 'package:anx_reader/main.dart';
+import 'package:anx_reader/monogatari/ui.dart';
 import 'package:anx_reader/service/update/github_release.dart';
 import 'package:anx_reader/service/update/startup_update_check.dart';
+import 'package:anx_reader/service/update/update_downloader.dart';
 import 'package:anx_reader/utils/app_version.dart';
 import 'package:anx_reader/utils/env_var.dart';
 import 'package:anx_reader/utils/log/common.dart';
@@ -11,12 +13,12 @@ import 'package:anx_reader/utils/toast/common.dart';
 import 'package:anx_reader/widgets/markdown/styled_markdown.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 final _releases = GitHubReleases();
 final _startupCheck = StartupUpdateCheck();
-bool _updateDialogOpen = false;
+bool _updateSheetOpen = false;
 
 Future<void> checkUpdate(bool manualCheck) async {
   if (!EnvVar.enableCheckUpdate || !_releases.isConfigured) return;
@@ -54,44 +56,181 @@ Future<void> _checkAndShowUpdate(bool manualCheck) async {
     if (manualCheck) AnxToast.show(L10n.of(context).commonNoNewVersion);
     return;
   }
-  if (_updateDialogOpen) return;
-  _updateDialogOpen = true;
+  if (_updateSheetOpen) return;
+  _updateSheetOpen = true;
   try {
-    if (manualCheck && Navigator.of(context).canPop()) Navigator.of(context).pop();
-    final asset = release.assetFor(Platform.operatingSystem);
-    final downloadUrl = asset?.downloadUrl ?? release.releaseUrl;
-    await SmartDialog.show<void>(
-      builder: (BuildContext context) {
-        final signingNote = Platform.isIOS && asset != null ? '\n\niOS IPA 需要自行签名安装。' : '';
-        return AlertDialog(
-          title: Text(L10n.of(context).commonNewVersion, style: const TextStyle(fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
-            child: StyledMarkdown(
-              data: '''### ${L10n.of(context).updateNewVersion} ${release.displayVersion}\n
-${L10n.of(context).updateCurrentVersion} $currentVersion\n
-${release.body}$signingNote''',
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(onPressed: () => SmartDialog.dismiss(), child: Text(L10n.of(context).commonCancel)),
-            TextButton(
-              onPressed: () async {
-                try {
-                  if (!await launchUrl(downloadUrl, mode: LaunchMode.externalApplication)) {
-                    throw StateError('Could not open the GitHub release');
-                  }
-                } catch (error) {
-                  AnxLog.severe('Update: Failed to open GitHub download $error');
-                  if (context.mounted) AnxToast.show(L10n.of(context).commonFailed);
-                }
-              },
-              child: Text(L10n.of(context).updateViaGithub),
-            ),
-          ],
-        );
-      },
+    await showMgSheet(
+      context: context,
+      title: L10n.of(context).mgUpdateTitle,
+      subtitle: '${currentVersion.split('+').first} → ${release.displayVersion}',
+      builder: (_) => _UpdateSheet(release: release),
     );
   } finally {
-    _updateDialogOpen = false;
+    _updateSheetOpen = false;
+  }
+}
+
+Future<void> _open(Uri uri) async {
+  try {
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) throw StateError('Could not open $uri');
+  } catch (error) {
+    AnxLog.severe('Update: Failed to open $uri $error');
+    final context = navigatorKey.currentContext;
+    if (context != null && context.mounted) AnxToast.show(L10n.of(context).commonFailed);
+  }
+}
+
+enum _Stage { idle, downloading, ready, failed }
+
+/// Release notes, then: Android downloads and verifies the APK in the app and opens the system
+/// installer; iOS downloads the IPA in the browser for self-signing; other systems open the release.
+class _UpdateSheet extends StatefulWidget {
+  const _UpdateSheet({required this.release});
+
+  final GitHubRelease release;
+
+  @override
+  State<_UpdateSheet> createState() => _UpdateSheetState();
+}
+
+class _UpdateSheetState extends State<_UpdateSheet> {
+  late final GitHubReleaseAsset? _asset = widget.release.assetFor(Platform.operatingSystem);
+  _Stage _stage = _Stage.idle;
+  int _received = 0;
+  int _total = 0;
+  CancelToken? _cancel;
+  File? _package;
+
+  bool get _inApp => Platform.isAndroid && _asset != null;
+
+  @override
+  void dispose() {
+    _cancel?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _update() async {
+    final asset = _asset;
+    if (!_inApp || asset == null) {
+      await _open(asset?.downloadUrl ?? widget.release.releaseUrl);
+      return;
+    }
+    final cancel = _cancel = CancelToken();
+    setState(() {
+      _stage = _Stage.downloading;
+      _received = 0;
+      _total = asset.size;
+    });
+    try {
+      final package = await UpdateDownloader().download(
+        asset,
+        cancelToken: cancel,
+        onProgress: (received, total) {
+          if (mounted) {
+            setState(() {
+              _received = received;
+              _total = total;
+            });
+          }
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        _package = package;
+        _stage = _Stage.ready;
+      });
+      await _install();
+    } catch (error) {
+      if (cancel.isCancelled || !mounted) return;
+      AnxLog.severe('Update: download failed $error');
+      setState(() => _stage = _Stage.failed);
+    }
+  }
+
+  Future<void> _install() async {
+    final package = _package;
+    if (package == null) return;
+    final result = await OpenFilex.open(package.path, type: 'application/vnd.android.package-archive');
+    if (result.type != ResultType.done) {
+      AnxLog.severe('Update: installer did not open ${result.message}');
+      if (mounted) AnxToast.show(L10n.of(context).commonFailed);
+    }
+  }
+
+  void _cancelDownload() {
+    _cancel?.cancel();
+    setState(() => _stage = _Stage.idle);
+  }
+
+  String _megabytes(int bytes) => (bytes / (1 << 20)).toStringAsFixed(1);
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context);
+    final palette = MgPalette.of(context);
+    final accent = Theme.of(context).colorScheme.primary;
+    final notes = widget.release.body.trim();
+    final progress = _total > 0 ? (_received / _total).clamp(0.0, 1.0) : null;
+
+    Widget status() => switch (_stage) {
+          _Stage.idle => const SizedBox.shrink(),
+          _Stage.downloading => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(3),
+                  child: LinearProgressIndicator(value: progress, minHeight: 6),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  [
+                    l10n.commonDownloading,
+                    if (progress != null) '${(progress * 100).round()}%',
+                    if (_total > 0) '${_megabytes(_received)} / ${_megabytes(_total)} MB',
+                  ].join('  '),
+                  style: TextStyle(fontSize: 13, color: palette.secondaryLabel),
+                ),
+              ],
+            ),
+          _Stage.ready => Text(l10n.mgUpdateDownloaded, style: TextStyle(fontSize: 14, color: accent)),
+          _Stage.failed => Text(l10n.commonDownloadFailed, style: const TextStyle(fontSize: 14, color: MgColors.red)),
+        };
+
+    final (String secondary, VoidCallback onSecondary, String primary, VoidCallback? onPrimary) = switch (_stage) {
+      _Stage.idle => (l10n.mgUpdateLater, () => Navigator.of(context).pop(), l10n.mgUpdateNow, _update),
+      _Stage.downloading => (l10n.commonCancel, _cancelDownload, l10n.commonDownloading, null),
+      _Stage.ready => (l10n.mgUpdateLater, () => Navigator.of(context).pop(), l10n.mgUpdateInstall, _install),
+      _Stage.failed => (l10n.mgUpdateLater, () => Navigator.of(context).pop(), l10n.commonRetry, _update),
+    };
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (notes.isNotEmpty)
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * .4),
+              child: SingleChildScrollView(child: StyledMarkdown(data: notes)),
+            ),
+          if (Platform.isIOS && _asset != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(l10n.mgUpdateIosSign, style: TextStyle(fontSize: 13, color: palette.secondaryLabel)),
+            ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+              onPressed: () => _open(widget.release.releaseUrl),
+              child: Text(l10n.viewChangelog),
+            ),
+          ),
+          if (_stage != _Stage.idle) ...[const SizedBox(height: 4), status(), const SizedBox(height: 12)],
+          const SizedBox(height: 4),
+          MgSheetButtons(secondary: secondary, onSecondary: onSecondary, primary: primary, onPrimary: onPrimary),
+        ],
+      ),
+    );
   }
 }

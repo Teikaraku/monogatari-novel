@@ -6,10 +6,14 @@ import 'package:dio/dio.dart';
 const githubRepository = String.fromEnvironment('GITHUB_REPOSITORY', defaultValue: 'Teikaraku/monogatari-novel');
 
 class GitHubReleaseAsset {
-  const GitHubReleaseAsset({required this.name, required this.downloadUrl});
+  const GitHubReleaseAsset({required this.name, required this.downloadUrl, this.sha256 = '', this.size = 0});
 
   final String name;
   final Uri downloadUrl;
+
+  /// Lower-case hex digest GitHub records for the upload; empty when it has none.
+  final String sha256;
+  final int size;
 }
 
 class GitHubRelease {
@@ -116,7 +120,12 @@ class GitHubReleases {
       final name = item['name'] as String;
       final uri = Uri.tryParse(item['browser_download_url'] as String);
       if (name.isEmpty || uri == null || !_isReleaseAsset(uri, tag)) continue;
-      assets.add(GitHubReleaseAsset(name: name, downloadUrl: uri));
+      final digest = item['digest'];
+      final sha256 = digest is String && RegExp(r'^sha256:[a-fA-F0-9]{64}$').hasMatch(digest)
+          ? digest.substring('sha256:'.length).toLowerCase()
+          : '';
+      final size = item['size'];
+      assets.add(GitHubReleaseAsset(name: name, downloadUrl: uri, sha256: sha256, size: size is int ? size : 0));
     }
     return GitHubRelease(
       repository: repository,

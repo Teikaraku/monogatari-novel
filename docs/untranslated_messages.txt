@@ -286,7 +286,13 @@
     "storeChapterCount",
     "storeShowChapters",
     "storeHideChapters",
-    "storeRankEmpty"
+    "storeRankEmpty",
+    "mgUpdateTitle",
+    "mgUpdateLater",
+    "mgUpdateNow",
+    "mgUpdateInstall",
+    "mgUpdateDownloaded",
+    "mgUpdateIosSign"
   ],
 
   "de": [
@@ -576,7 +582,13 @@
     "storeChapterCount",
     "storeShowChapters",
     "storeHideChapters",
-    "storeRankEmpty"
+    "storeRankEmpty",
+    "mgUpdateTitle",
+    "mgUpdateLater",
+    "mgUpdateNow",
+    "mgUpdateInstall",
+    "mgUpdateDownloaded",
+    "mgUpdateIosSign"
   ],
 
   "es": [
@@ -866,7 +878,13 @@
     "storeChapterCount",
     "storeShowChapters",
     "storeHideChapters",
-    "storeRankEmpty"
+    "storeRankEmpty",
+    "mgUpdateTitle",
+    "mgUpdateLater",
+    "mgUpdateNow",
+    "mgUpdateInstall",
+    "mgUpdateDownloaded",
+    "mgUpdateIosSign"
   ],
 
   "fr": [
@@ -1156,7 +1174,13 @@
     "storeChapterCount",
     "storeShowChapters",
     "storeHideChapters",
-    "storeRankEmpty"
+    "storeRankEmpty",
+    "mgUpdateTitle",
+    "mgUpdateLater",
+    "mgUpdateNow",
+    "mgUpdateInstall",
+    "mgUpdateDownloaded",
+    "mgUpdateIosSign"
   ],
 
   "it": [
@@ -1446,7 +1470,13 @@
     "storeChapterCount",
     "storeShowChapters",
     "storeHideChapters",
-    "storeRankEmpty"
+    "storeRankEmpty",
+    "mgUpdateTitle",
+    "mgUpdateLater",
+    "mgUpdateNow",
+    "mgUpdateInstall",
+    "mgUpdateDownloaded",
+    "mgUpdateIosSign"
   ],
 
   "ja": [
@@ -1736,7 +1766,13 @@
     "storeChapterCount",
     "storeShowChapters",
     "storeHideChapters",
-    "storeRankEmpty"
+    "storeRankEmpty",
+    "mgUpdateTitle",
+    "mgUpdateLater",
+    "mgUpdateNow",
+    "mgUpdateInstall",
+    "mgUpdateDownloaded",
+    "mgUpdateIosSign"
   ],
 
   "ko": [
@@ -2026,7 +2062,13 @@
     "storeChapterCount",
     "storeShowChapters",
     "storeHideChapters",
-    "storeRankEmpty"
+    "storeRankEmpty",
+    "mgUpdateTitle",
+    "mgUpdateLater",
+    "mgUpdateNow",
+    "mgUpdateInstall",
+    "mgUpdateDownloaded",
+    "mgUpdateIosSign"
   ],
 
   "pt": [
@@ -2316,7 +2358,13 @@
     "storeChapterCount",
     "storeShowChapters",
     "storeHideChapters",
-    "storeRankEmpty"
+    "storeRankEmpty",
+    "mgUpdateTitle",
+    "mgUpdateLater",
+    "mgUpdateNow",
+    "mgUpdateInstall",
+    "mgUpdateDownloaded",
+    "mgUpdateIosSign"
   ],
 
   "ro": [
@@ -2606,7 +2654,13 @@
     "storeChapterCount",
     "storeShowChapters",
     "storeHideChapters",
-    "storeRankEmpty"
+    "storeRankEmpty",
+    "mgUpdateTitle",
+    "mgUpdateLater",
+    "mgUpdateNow",
+    "mgUpdateInstall",
+    "mgUpdateDownloaded",
+    "mgUpdateIosSign"
   ],
 
   "ru": [
@@ -2896,7 +2950,13 @@
     "storeChapterCount",
     "storeShowChapters",
     "storeHideChapters",
-    "storeRankEmpty"
+    "storeRankEmpty",
+    "mgUpdateTitle",
+    "mgUpdateLater",
+    "mgUpdateNow",
+    "mgUpdateInstall",
+    "mgUpdateDownloaded",
+    "mgUpdateIosSign"
   ],
 
   "tr": [
@@ -3186,6 +3246,12 @@
     "storeChapterCount",
     "storeShowChapters",
     "storeHideChapters",
-    "storeRankEmpty"
+    "storeRankEmpty",
+    "mgUpdateTitle",
+    "mgUpdateLater",
+    "mgUpdateNow",
+    "mgUpdateInstall",
+    "mgUpdateDownloaded",
+    "mgUpdateIosSign"
   ]
 }

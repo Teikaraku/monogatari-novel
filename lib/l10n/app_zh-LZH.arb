@@ -1127,5 +1127,11 @@
   "storeChapterCount": "{count} 章",
   "storeShowChapters": "展开目录",
   "storeHideChapters": "收起目录",
-  "storeRankEmpty": "暂无上榜作品"
+  "storeRankEmpty": "暂无上榜作品",
+  "mgUpdateTitle": "发现新版本",
+  "mgUpdateLater": "稍后",
+  "mgUpdateNow": "立即更新",
+  "mgUpdateInstall": "安装",
+  "mgUpdateDownloaded": "已下载并校验",
+  "mgUpdateIosSign": "IPA 需要自行签名后安装。"
 }

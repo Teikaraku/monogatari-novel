@@ -3,7 +3,10 @@ import 'dart:async';
 import 'package:anx_reader/config/shared_preference_provider.dart';
 import 'package:anx_reader/l10n/generated/L10n.dart';
 import 'package:anx_reader/monogatari/ui.dart';
+import 'package:anx_reader/service/update/github_release.dart';
 import 'package:anx_reader/utils/app_version.dart';
+import 'package:anx_reader/utils/check_update.dart';
+import 'package:anx_reader/utils/env_var.dart';
 import 'package:anx_reader/utils/toast/common.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -68,6 +71,19 @@ class _AboutPageState extends State<AboutPage> {
             children: [
               MgReadable(child: _Header(version: version, onVersionTap: () => _onVersionTap(snapshot.data ?? ''))),
               const SizedBox(height: 12),
+              if (EnvVar.enableCheckUpdate)
+                MgGroup(children: [
+                  _AboutLink.action(
+                    icon: Icons.system_update_outlined,
+                    title: l10n.aboutCheckForUpdates,
+                    onTap: () => checkUpdate(true),
+                  ),
+                  _AboutLink(
+                    icon: Icons.history_rounded,
+                    title: l10n.viewChangelog,
+                    url: 'https://github.com/$githubRepository/releases',
+                  ),
+                ]),
               MgGroup(title: l10n.mgAboutOpenSource, children: [
                 _AboutLink.page(
                   icon: Icons.favorite_outline_rounded,

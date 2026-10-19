@@ -222,6 +222,19 @@ void main() {
     expect(requests, 2);
   });
 
+  test('asset digests and sizes are read for download verification', () async {
+    final good = 'ab' * 32;
+    final adapter = _Adapter((_) => _response(_release(assets: [
+          {..._asset('a-android-arm64.apk'), 'digest': 'sha256:${good.toUpperCase()}', 'size': 42},
+          {..._asset('b-ios.ipa'), 'digest': 'md5:abc', 'size': '7'},
+        ])));
+    final release = await client(adapter).latest();
+    expect(release!.assets[0].sha256, good);
+    expect(release.assets[0].size, 42);
+    expect(release.assets[1].sha256, isEmpty);
+    expect(release.assets[1].size, 0);
+  });
+
   group('release assets', () {
     late GitHubRelease release;
 

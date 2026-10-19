@@ -1231,5 +1231,11 @@
   "storeChapterCount": "{count} chapters",
   "storeShowChapters": "Show chapters",
   "storeHideChapters": "Hide chapters",
-  "storeRankEmpty": "No rankings yet"
+  "storeRankEmpty": "No rankings yet",
+  "mgUpdateTitle": "New version",
+  "mgUpdateLater": "Later",
+  "mgUpdateNow": "Update",
+  "mgUpdateInstall": "Install",
+  "mgUpdateDownloaded": "Downloaded and verified",
+  "mgUpdateIosSign": "Sign the IPA before installing it."
 }

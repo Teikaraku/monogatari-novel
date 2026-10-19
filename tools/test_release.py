@@ -22,6 +22,8 @@ class ReleaseTests(unittest.TestCase):
         (self.root / ".github").mkdir()
         (self.root / ".github/flutter-version").write_text("3.47.2\n", encoding="utf-8")
         (self.root / "pubspec.yaml").write_text("name: fixture\nversion: 0.1.0+1\n", encoding="utf-8")
+        (self.root / "docs").mkdir()
+        (self.root / "docs/release-notes.md").write_text("- 修复问题\n", encoding="utf-8")
         self.dist = self.root / "dist"
         self.dist.mkdir()
         self.env = {
@@ -91,6 +93,12 @@ class ReleaseTests(unittest.TestCase):
     def test_exact_tag_and_build_metadata(self):
         info = release.metadata(self.root, "push", "refs/tags/v0.1.0")
         self.assertEqual(info, {"version": "0.1.0", "build": "1", "tag": "v0.1.0", "flutter_version": "3.47.2"})
+
+    def test_release_notes_are_required_and_become_the_body(self):
+        self.assertEqual(release.release_notes(self.root), "- 修复问题")
+        (self.root / "docs/release-notes.md").write_text("  \n", encoding="utf-8")
+        with self.assertRaises(ValueError):
+            release.metadata(self.root, "push", "refs/tags/v0.1.0")
 
     def test_mismatched_tags_branches_and_shell_text_are_rejected(self):
         for ref in ("refs/tags/v0.1.1", "refs/heads/main", "refs/tags/v0.1.0+1", "refs/tags/v0.1.0;echo bad"):

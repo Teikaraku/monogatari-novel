@@ -41,6 +41,7 @@ def metadata(root: Path, event: str, ref: str) -> dict[str, str]:
     flutter = (root / ".github/flutter-version").read_text(encoding="utf-8").strip()
     if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", flutter):
         raise ValueError("invalid Flutter version")
+    release_notes(root)
     return {"version": version, "build": build, "tag": tag, "flutter_version": flutter}
 
 
@@ -112,6 +113,15 @@ def api(repo: str, route: str, payload: dict | None = None):
     return json.loads(gh(*args, payload=payload))
 
 
+def release_notes(root: Path) -> str:
+    """docs/release-notes.md is the release body the in-app updater shows."""
+    notes = root / "docs" / "release-notes.md"
+    text = notes.read_text(encoding="utf-8").strip() if notes.is_file() else ""
+    if not text:
+        raise ValueError("docs/release-notes.md must describe this release")
+    return text
+
+
 def publish(root: Path, dist: Path, environ: dict[str, str]) -> None:
     info = metadata(root, environ.get("GITHUB_EVENT_NAME", ""), environ.get("GITHUB_REF", ""))
     if environ.get("GITHUB_EVENT_NAME") != "push":
@@ -142,7 +152,7 @@ def publish(root: Path, dist: Path, environ: dict[str, str]) -> None:
             "tag_name": info["tag"],
             "target_commitish": sha,
             "name": f"Monogatari Novel {info['version']}",
-            "body": "Android: signed universal APK.\n\niOS: unsigned IPA; sign before installation.\n\nVerify downloads with SHA256SUMS.txt.",
+            "body": release_notes(root),
             "draft": True,
             "prerelease": False,
         })
