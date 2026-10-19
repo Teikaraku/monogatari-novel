@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:anx_reader/service/update/github_release.dart';
@@ -186,6 +187,39 @@ void main() {
     await expectLater(releases.latest(), throwsA(isA<DioException>()));
     expect(await releases.latest(), isNotNull);
     expect(attempts, 2);
+  });
+
+  test('a stalled response times out and releases the shared request for a successful retry', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    var requests = 0;
+    server.listen((request) {
+      if (++requests == 1) return; // Keep the first connection open without sending a response.
+      request.response.headers.contentType = ContentType.text;
+      request.response.write(jsonEncode(_release()));
+      unawaited(request.response.close());
+    });
+    final dio = Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 1),
+      receiveTimeout: const Duration(milliseconds: 200),
+    ));
+    addTearDown(() => dio.close(force: true));
+    dio.interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
+      options.path = 'http://127.0.0.1:${server.port}/latest';
+      handler.next(options);
+    }));
+    final releases = GitHubReleases(repository: 'owner/novel', dio: dio);
+    final stalled = releases.latest();
+    expect(identical(stalled, releases.latest()), isTrue);
+    await expectLater(
+      stalled,
+      throwsA(isA<DioException>().having((error) => error.type, 'type', DioExceptionType.receiveTimeout)),
+    );
+    expect(requests, 1);
+    final retry = releases.latest();
+    expect(identical(retry, stalled), isFalse);
+    expect((await retry)!.tagName, 'monogatari-v1.2.3');
+    expect(requests, 2);
   });
 
   group('release assets', () {

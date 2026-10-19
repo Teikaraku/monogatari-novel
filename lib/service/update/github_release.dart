@@ -64,7 +64,11 @@ String? _androidArchitecture(String name) {
 class GitHubReleases {
   GitHubReleases({String repository = githubRepository, Dio? dio})
       : repository = repository.trim(),
-        _dio = dio ?? Dio();
+        _dio = dio ??
+            Dio(BaseOptions(
+              connectTimeout: const Duration(seconds: 10),
+              receiveTimeout: const Duration(seconds: 20),
+            ));
 
   final String repository;
   final Dio _dio;
