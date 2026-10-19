@@ -6,6 +6,7 @@ import 'package:anx_reader/dao/database.dart';
 import 'package:anx_reader/dao/store_book_tag.dart';
 import 'package:anx_reader/dao/tag.dart';
 import 'package:anx_reader/utils/get_path/get_base_path.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -36,6 +37,9 @@ void main() {
   late Directory directory;
   late String oldDocumentPath;
   final buildDirectory = Directory(p.join(Directory.current.path, 'build'));
+  const pathProviderChannel = MethodChannel('plugins.flutter.io/path_provider');
+  final pathProviderCalls = <String>[];
+  final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
 
   setUp(() async {
     await DBHelper.close();
@@ -45,13 +49,27 @@ void main() {
     documentPath = directory.path;
     await Directory(p.join(directory.path, 'file')).create();
     await Directory(p.join(directory.path, 'cover')).create();
-    SharedPreferences.setMockInitialValues({'customStoragePath': directory.path});
+    pathProviderCalls.clear();
+    messenger.setMockMethodCallHandler(pathProviderChannel, (call) async {
+      switch (call.method) {
+        case 'getApplicationDocumentsDirectory':
+        case 'getApplicationSupportDirectory':
+          pathProviderCalls.add(call.method);
+          return directory.path;
+        default:
+          throw MissingPluginException('Unexpected path_provider method: ${call.method}');
+      }
+    });
+    // Exercise the same platform path lookup on Windows and Linux, instead of
+    // bypassing the plugin only on Windows through customStoragePath.
+    SharedPreferences.setMockInitialValues({});
     await Prefs().initPrefs();
     DBHelper.updatedDB = false;
   });
 
   tearDown(() async {
     await DBHelper.close();
+    messenger.setMockMethodCallHandler(pathProviderChannel, null);
     documentPath = oldDocumentPath;
     final resolvedRoot = await buildDirectory.resolveSymbolicLinks();
     final resolvedDirectory = await directory.resolveSymbolicLinks();
@@ -63,6 +81,8 @@ void main() {
 
   test('new database creates version 9 table and index before opening returns', () async {
     final db = await _openDatabase();
+    expect(db.path, p.join(directory.path, 'databases', 'app_database.db'));
+    expect(pathProviderCalls, containsAll(['getApplicationDocumentsDirectory', 'getApplicationSupportDirectory']));
     await _expectStoreTagSchema(db);
     expect(await storeBookTagDao.storeIdToTagIds(), isEmpty);
   });
