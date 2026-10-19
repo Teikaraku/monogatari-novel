@@ -1,0 +1,6 @@
+git_url(ENV.fetch("MATCH_GIT_URL"))
+storage_mode("git")
+type("appstore") # For macOS: developer_id for direct distribution, appstore for Mac App Store
+
+app_identifier([ENV["APP_BUNDLE_ID"]])
+platform("macos")

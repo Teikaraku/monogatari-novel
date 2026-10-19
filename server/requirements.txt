@@ -1,0 +1,6 @@
+fastapi==0.143.3
+uvicorn[standard]==0.54.0
+orjson==3.13.0
+Pillow==13.0.0
+pypinyin==0.55.0
+tzdata==2026.5

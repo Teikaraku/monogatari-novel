@@ -1,0 +1,70 @@
+name: monogatari-novel
+
+services:
+  api:
+    image: monogatari-novel:latest
+    build: .
+    user: "10001:10001"
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:58200:8080"
+    volumes:
+      - "${LIBRARY_HOST_DIR}:/library:ro"
+      - "${DATA_HOST_DIR}:/data:ro"
+      - "${CURATION_HOST_DIR}:/curation:ro"
+    environment:
+      PUBLIC_BASE: "${PUBLIC_BASE:-}"
+      TIMEZONE: "${TIMEZONE:-Asia/Shanghai}"
+    mem_limit: 1g
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  indexer:
+    image: monogatari-novel:latest
+    build: .
+    user: "10001:10001"
+    restart: unless-stopped
+    command: python -m novel.indexer
+    volumes:
+      - "${LIBRARY_HOST_DIR}:/library:ro"
+      - "${DATA_HOST_DIR}:/data"
+      - "${CURATION_HOST_DIR}:/curation:ro"
+    environment:
+      PUBLIC_BASE: "${PUBLIC_BASE:-}"
+      TIMEZONE: "${TIMEZONE:-Asia/Shanghai}"
+      FILES_LINK_ROOT: "${LIBRARY_HOST_DIR}"
+    cpus: 2.0
+    mem_limit: 1g
+    healthcheck:
+      disable: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  stats:
+    image: monogatari-novel:latest
+    build: .
+    user: "10001:10001"
+    restart: unless-stopped
+    command: python -m novel.stats
+    volumes:
+      - "${DATA_HOST_DIR}:/data"
+      - "${NGINX_LOG_HOST_DIR}:/nginxlog:ro"
+    environment:
+      PUBLIC_BASE: "${PUBLIC_BASE:-}"
+      TIMEZONE: "${TIMEZONE:-Asia/Shanghai}"
+      FILES_LINK_ROOT: "${LIBRARY_HOST_DIR}"
+    cpus: 0.5
+    mem_limit: 256m
+    healthcheck:
+      disable: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,35 @@
+name: Pull request checks
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Read checked Flutter version
+        id: version
+        run: python3 tools/release.py metadata
+      - name: Test release validation
+        run: python3 -m unittest discover -s tools -p 'test_release.py' -v
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ steps.version.outputs.flutter_version }}
+          cache: true
+      - run: flutter pub get
+      - run: flutter gen-l10n
+      - run: dart run build_runner build --delete-conflicting-outputs
+      - run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - run: flutter test --no-pub

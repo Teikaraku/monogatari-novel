@@ -1,0 +1,140 @@
+## 1.15.0
+- Ci(android): Play Store beta CI now completes Closed testing (alpha) and Open testing (beta) tracks so testers can download without a Console roll-out
+- Ci(android): Play Store alpha uploads to the internal track now publish as completed so testers can download without a Console roll-out
+- Fix(sync): Reject WebDAV database upload when the local library has no non-deleted books, to avoid wiping the cloud library with an empty DB (#911, #898 mitigation)
+- Feat(notes): Export/import book notes as JSON with book fingerprint (md5/title/author) for per-book migration across devices (#898, #911 escape hatch)
+- Fix(webdav): Follow 301/307/308 redirects (vendored webdav_client) so AList-style redirect strategies work (#345)
+- Fix(android): Optional setting to trust user-installed / custom CA certificates for HTTPS WebDAV (e.g. private Nextcloud) (#719)
+- Feat(sync): WebDAV URL hint — fill a writable directory; the app creates `anx/` under it
+- Feat(android): Long-press expands CJK selection to a word (Intl.Segmenter); selection handles remain freely draggable
+- Fix(reader): Honor writing-direction setting for EPUBs that set writing-mode on body (e.g. vertical Japanese books) (#867)
+- Fix(log): Silence Chromium iframe sandbox WebView warning that already had an ignore entry but failed exact match due to trailing period (#877)
+- Ci: Upgrade lock-threads to v6 and use github.token so lock-closed-issues stops failing daily on long GITHUB_TOKEN secrets
+- Feat(search): Add in-app search results with configurable search engine and display modes (#894)
+- Feat(ai): Add configurable delay threshold for auto-summary when reopening a book (#922)
+- Feat(ai): Make custom user prompts available in the Home AI tab for parity with reader AI (#853)
+- Fix(bookshelf): Show book file format in detail metadata so users can see the extension inside the app (#910)
+- Feat(network): Add global HTTP proxy support in advanced settings (#838) Thanks @dddXzz
+- Feat(network): Add HTTP proxy connectivity test feature (#838) Thanks @dddXzz
+- Fix(reader): Fix Android selection auto-page turn — continuous turns and missed turns when dragging across pages (#875) Thanks @addtion99
+- Fix(l10n): Update Russian translation (#874) Thanks @Xapitonov
+- Fix(ai): Avoid native WebView2 crash when running book content search on Windows (#978) Thanks @bazzdug-arch
+- Perf(reader): Reduce Android reading-page scroll jank by deferring relocate during scroll (#914) Thanks @dddXzz
+- Fix(reader): Restore reader keyboard focus after clearing text selection / closing context menu (#967, #966) Thanks @zyx-31415
+- Fix(reader): Open selection menu on single-word long-press on Android (#990, #968, #900)
+- Fix(sync): Strip special characters (e.g. # @ $ %) from file names on import so WebDAV servers like Jianguoyun accept uploads (#989)
+- Feat(appearance): Disable open-book animation, page transitions, and dialog motion when e-ink mode is on (#986)
+- Fix(bookshelf): Make group rename more obvious with an edit icon (#972)
+- Fix(ai): Preserve Gemini thought_signature across tool-call round-trips so thinking models work with tools (#977)
+- Fix(reader): Page-turn keys clear selection and turn pages instead of panning while text is selected (#966)
+- Fix(ai): Null-safe custom provider config parsing and clearer errors when required fields or response shape are invalid (#868)
+- Fix(ai): Quick prompt chips insert into the composer for editing; long-press still sends immediately (#969)
+- Feat(linux): Add Linux AppImage and tar.gz packaging via CEF (#952)
+- Fix(ai): Make the Add Prompt button in AI settings full-width to match the surrounding rows
+- Fix(ai): Fix AI settings showing a grey error screen on fresh installs and provider edits failing to save, by restoring generated AiProvider JSON serialization with lenient converters
+- Chore(android): Target Android 16 (API 36) and upgrade to Google Play Billing Library 8 to meet Google Play requirements
+
+- Ci(android): Play 商店 beta CI 现会将版本同步发布到 Closed testing（alpha）与 Open testing（beta）并设为 completed，测试者无需在 Console 手动发布即可下载
+- Ci(android): Play 商店 alpha 上传至 internal 轨道时自动设为 completed，测试者无需在 Console 手动发布即可下载
+- Fix(sync): 本地书库无未删除书籍时拒绝上传 WebDAV 数据库，避免用空库覆盖云端 (#911, #898 缓解)
+- Feat(notes): 支持按书导出/导入笔记 JSON（含 md5/书名/作者指纹），便于跨设备迁移批注 (#898, #911 逃生舱)
+- Fix(webdav): 跟随 301/307/308 重定向（vendored webdav_client），兼容 AList 等 302 策略 (#345)
+- Fix(android): 新增可选设置以信任用户安装/自定义 CA 证书，便于私有 Nextcloud 等 HTTPS WebDAV (#719)
+- Feat(sync): WebDAV URL 提示——填写可写入目录，应用会在其下创建 `anx/`
+
+- Feat(android): 长按单字 CJK 选区通过 Intl.Segmenter 扩展为词语，仍可自由拖动手柄调整选区
+- Fix(reader): 修复部分 EPUB（如在 body 上设置竖排 writing-mode）忽略写作方向设置的问题 (#867)
+- Fix(log): 修复因句末句点导致精确匹配失败、未能屏蔽 Chromium iframe sandbox WebView 警告的问题 (#877)
+- Ci: 升级 lock-threads 至 v6 并改用 github.token，避免 lock-closed-issues 因过长 GITHUB_TOKEN 每日失败
+- Feat(search): 支持应用内搜索结果显示，可配置搜索引擎和显示方式 (#894)
+- Feat(ai): 新增自动摘要延迟阈值配置，可控制重新打开书籍时的摘要触发时机 (#922)
+- Feat(ai): 让自定义用户提示词在首页 AI 标签页中可用，并与阅读器 AI 保持一致 (#853)
+- Fix(bookshelf): 在书籍详情元数据中显示文件格式，方便用户在应用内查看扩展名 (#910)
+- Feat(network): 新增全局 HTTP 代理支持，可在高级设置中配置代理服务器地址和端口 (#838) 感谢 @dddXzz
+- Feat(network): 新增代理连接测试功能 (#838) 感谢 @dddXzz
+- Fix(reader): 修复 Android 选区跨页自动翻页的连续翻页与漏翻问题 (#875) 感谢 @addtion99
+- Fix(l10n): 更新俄语翻译 (#874) 感谢 @Xapitonov
+- Fix(ai): 修复 Windows 上书籍内容搜索触发原生 WebView2 崩溃的问题 (#978) 感谢 @bazzdug-arch
+- Perf(reader): 优化 Android 阅读页滚动卡顿，滚动期间推迟 relocate (#914) 感谢 @dddXzz
+- Fix(reader): 修复清除选区/关闭上下文菜单后阅读器键盘焦点未恢复的问题 (#967, #966) 感谢 @zyx-31415
+- Fix(reader): 修复 Android 长按选中单字不弹出菜单的问题 (#990, #968, #900)
+- Fix(sync): 导入时移除文件名中的特殊字符（如 # @ $ %），避免坚果云等 WebDAV 拒绝上传 (#989)
+- Feat(appearance): 开启墨水屏模式时关闭开书动画、页面转场与弹窗动画 (#986)
+- Fix(bookshelf): 分组重命名入口增加编辑图标，更加明显 (#972)
+- Fix(ai): 修复 Gemini 工具调用时缺失 thought_signature 导致思考模型报错的问题 (#977)
+- Fix(reader): 选中文本时方向键/翻页键先清除选区再翻页，避免页面平移 (#966)
+- Fix(ai): 自定义供应商配置解析更空安全，并在必填项或响应格式异常时给出明确错误 (#868)
+- Fix(ai): 快捷提示词芯片点击写入输入框以便编辑，长按仍可立即发送 (#969)
+- Feat(linux): 新增 Linux AppImage 与 tar.gz 打包支持（基于 CEF）(#952)
+- Fix(ai): AI 设置中“添加提示词”按钮改为占满整行，与上下设置项对齐
+- Fix(ai): 修复全新安装时 AI 设置页灰屏、供应商增删改无法保存的问题（恢复 AiProvider 生成式 JSON 序列化并保留宽松解析）
+- Chore(android): 目标 SDK 升级到 Android 16（API 36），并升级到 Google Play Billing Library 8，满足 Google Play 上架要求
+
+## 1.14.0
+- Fix(translate): Remove legacy Microsoft reverse-engineered translation service and migrate saved full-text translation preference to Microsoft Azure API
+- Fix(l10n): Remove legacy Microsoft translation localization entries
+- Feat(ai): Support separate AI reasoning content with lightweight collapsible thinking UI in chat and stream views (#787)
+- Feat(reader): Add background image fit mode setting with cover and stretch options
+- Feat(appearance): Add setting to toggle action button labels visibility in selection context menu
+- Feat(reader): Add background image blur and opacity controls in reading settings (#753)
+- Feat(tts): Add Narrator option to text selection toolbar to start TTS from selected text (#794) Thanks @deskangel
+- Feat(tts): Add click to pause/resume TTS playback on currently reading text (#794) Thanks @deskangel
+- Feat(tts): Add floating action button in reader for quick TTS controls (previous, pause/resume, next, stop) (#723)
+- Feat(reader): Add Ctrl+[ and Ctrl+] page turning shortcuts on macOS, support Logitech Options+ mouse button mapping (#794) Thanks @deskangel
+- Feat(ai): Add global AI RPM rate limiting in AI service layer
+- Feat(ai): Add AI Provider Configuration Center with support for OpenAI-compatible, Claude, and Gemini protocols
+- Feat(ai): Support multiple API keys per provider with round-robin rotation
+- Feat(ai): Add provider-level reasoning_effort configuration with auto mode and advanced settings entry
+- Feat(ai): Add provider test connection with streaming preview
+- Feat(ai): Add AI chat display mode settings with adaptive, split, and popup options
+- Feat(ai): Add resizable AI panel with drag to resize, sizes persisted
+- Feat(ai): Add AI panel position settings (bottom/right) for non-popup modes
+- Feat(ai): Add font size setting for AI chat via three-dot menu
+- Feat(ai): Add quick model switcher in AI chat input bar (tune icon button)
+- Feat(ai): Add model picker in provider detail page with showMenu dropdown after fetching
+- Fix(ui): Fix context menu action buttons layout and icon color issues when labels are hidden
+- Fix(reader): Fix background image effects not applying and switch reader background fill mode to cover (#753)
+- Fix(reader): Fix RangeError crash when read theme color is null/invalid (#759)
+- Fix(tts): Fix TTS type selection having no effect when changed in reading interface (#794) Thanks @deskangel
+- Fix(tts): Fix incorrect reading position after modifying pitch or rate (#794) Thanks @deskangel
+- Fix(tts): Fix crash when SystemTts speak() receives null text from WebView
+- Fix(ai): Fix unable to use AI for full-text translation
+- Fix(ai): Fix test connection using default provider instead of current provider
+- Fix(ai): Fix AI crash prevention by adding guards for null webViewEnvironment on Windows
+- Fix(ai): Fix type cast error when using Gemini AI with tools (#747)
+- Fix(reader): Desktop resource lifecycle, WebView stability, and scroll UX optimization (#790) Thanks @yi124773651
+- Fix(reader): Fix window close cleanup to properly stop server, dispose WebView2, close database, and destroy window
+- Fix(reader): Add scroll debounce mechanism for smoother page turning experience
+- Fix(reader): Fix image saving permission issue on Android 10+ devices by removing unnecessary storage permission requests (#793)
+- Fix(reader): Disable WebView2 right-click context menu (back, reload, save as, print) on Windows (#746)
+- Feat(tts): Add adjustable TTS speed, pitch, and volume settings with slider controls
+- Feat(tts): Add system TTS engine selection with dropdown picker in TTS settings
+- Feat(tts): Add TTS voice selection with language filtering based on device locale
+- Feat(reader): Add long press to select text in EPUB reader for highlighting and note-taking
+- Fix(reader): Fix text selection not working properly on Android devices
+- Fix(reader): Fix crash when opening corrupted EPUB files with invalid metadata
+- Feat(settings): Add reading theme customization with custom background colors and text colors
+- Feat(settings): Add font size and line height adjustment in reading settings
+- Fix(settings): Fix settings not persisting after app restart on iOS devices
+- Feat(sync): Add WebDAV sync support for reading progress and bookmarks
+- Fix(sync): Fix sync conflicts when multiple devices modify the same book
+- Feat(import): Add support for importing CBZ comic book archives
+- Fix(import): Fix PDF import failing for files with special characters in filename
+- Feat(export): Add highlight and note export to Markdown format
+- Fix(ui): Fix dark mode colors not applying correctly in some settings screens
+- Feat(search): Add full-text search within EPUB books with result highlighting
+- Fix(search): Fix search results not updating when switching between books
+- Feat(collections): Add custom collections with drag-and-drop book organization
+- Fix(collections): Fix collection order resetting after app update
+- Feat(stats): Add reading statistics dashboard with daily/weekly/monthly views
+- Fix(stats): Fix reading time calculation including background time on Android
+- Feat(backup): Add automatic backup scheduling with configurable intervals
+- Fix(backup): Fix backup file corruption when backup is interrupted
+- Feat(ui): Add smooth page turn animations with customizable transition styles
+- Fix(ui): Fix flickering when turning pages in fast scrolling mode
+- Feat(accessibility): Add screen reader support for all major UI elements
+- Fix(accessibility): Fix focus traversal order in settings menus
+- Feat(i18n): Add Turkish, Romanian, and Ukrainian translations
+- Fix(i18n): Fix missing translations for AI-related settings in all languages
+- Feat(developer): Add debug logging toggle in advanced settings
+- Fix(developer): Fix crash reports not including device information on Android 14+

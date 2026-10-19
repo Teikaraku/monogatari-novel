@@ -1,0 +1,167 @@
+name: Official Android and iOS release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Validate version and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      flutter_version: ${{ steps.version.outputs.flutter_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate tag against pubspec before building
+        id: version
+        run: python3 tools/release.py metadata
+      - name: Test release validation
+        run: python3 -m unittest discover -s tools -p 'test_release.py' -v
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ steps.version.outputs.flutter_version }}
+          cache: true
+      - run: flutter pub get
+      - run: flutter gen-l10n
+      - run: dart run build_runner build --delete-conflicting-outputs
+      - run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - run: flutter test --no-pub
+
+  android:
+    name: Signed Android APK
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ needs.verify.outputs.flutter_version }}
+          cache: true
+      - run: flutter pub get
+      - run: flutter gen-l10n
+      - run: dart run build_runner build --delete-conflicting-outputs
+      - name: Configure release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.NOVEL_ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.NOVEL_ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.NOVEL_ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.NOVEL_ANDROID_KEY_PASSWORD }}
+        run: |
+          python3 - <<'PY'
+          import base64, os
+          from pathlib import Path
+          names = ('KEYSTORE_BASE64', 'KEYSTORE_PASSWORD', 'KEY_ALIAS', 'KEY_PASSWORD')
+          if any(not os.environ.get(name) for name in names):
+              raise SystemExit('All four NOVEL_ANDROID signing secrets must be configured.')
+          def escape(value):
+              units = value.encode('utf-16-be')
+              return ''.join('\\u' + units[i:i + 2].hex() for i in range(0, len(units), 2))
+          key = Path(os.environ['RUNNER_TEMP']) / 'novel-release.jks'
+          key.write_bytes(base64.b64decode(os.environ['KEYSTORE_BASE64'], validate=True))
+          key.chmod(0o600)
+          properties = {'storeFile': str(key), 'storePassword': os.environ['KEYSTORE_PASSWORD'], 'keyAlias': os.environ['KEY_ALIAS'], 'keyPassword': os.environ['KEY_PASSWORD']}
+          target = Path('android/key.properties')
+          target.write_text(''.join(f'{k}={escape(v)}\n' for k, v in properties.items()), encoding='ascii')
+          target.chmod(0o600)
+          PY
+      - name: Build signed universal APK
+        env:
+          RELEASE_REPOSITORY: ${{ github.repository }}
+        run: flutter build apk --release --dart-define="GITHUB_REPOSITORY=$RELEASE_REPOSITORY"
+      - name: Package Android artifact
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk dist/Monogatari-Novel-Android-universal.apk
+          "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner" verify --verbose dist/Monogatari-Novel-Android-universal.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: novel-android
+          path: dist/Monogatari-Novel-Android-universal.apk
+          if-no-files-found: error
+          retention-days: 30
+      - name: Remove signing material
+        if: always()
+        run: rm -f android/key.properties "$RUNNER_TEMP/novel-release.jks"
+
+  ios:
+    name: Unsigned iOS IPA
+    needs: verify
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ needs.verify.outputs.flutter_version }}
+          cache: true
+      - name: Report default Xcode
+        run: xcodebuild -version
+      - run: flutter pub get
+      - run: flutter gen-l10n
+      - run: dart run build_runner build --delete-conflicting-outputs
+      - name: Build unsigned iOS app
+        env:
+          RELEASE_REPOSITORY: ${{ github.repository }}
+        run: flutter build ios --release --no-codesign --dart-define="GITHUB_REPOSITORY=$RELEASE_REPOSITORY"
+      - name: Package unsigned IPA
+        run: |
+          test -d build/ios/iphoneos/Runner.app
+          mkdir -p "$RUNNER_TEMP/novel-ipa/Payload" dist
+          cp -R build/ios/iphoneos/Runner.app "$RUNNER_TEMP/novel-ipa/Payload/Runner.app"
+          (cd "$RUNNER_TEMP/novel-ipa" && zip -q -r "$GITHUB_WORKSPACE/dist/Monogatari-Novel-iOS-unsigned.ipa" Payload)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: novel-ios
+          path: dist/Monogatari-Novel-iOS-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish complete verified release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [verify, android, ios]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: novel-publish-${{ github.repository }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: novel-*
+          merge-multiple: true
+          path: dist
+      - name: Validate embedded versions and create checksums
+        run: python3 tools/release.py checksums
+      - name: Upload draft, verify downloads, then publish latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/release.py publish
