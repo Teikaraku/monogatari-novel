@@ -37,6 +37,7 @@ import 'package:anx_reader/utils/toast/common.dart';
 import 'package:anx_reader/utils/webView/gererate_url.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as path;
 
@@ -343,6 +344,22 @@ Future<bool> _settleOpenReader(Book book, {required bool hasTarget}) async {
   return false;
 }
 
+bool? _hasWebView;
+
+/// The reader is a WebView. Some Android phones have the system WebView disabled or missing, and
+/// opening the reader there would leave a blank page, so this is checked once before the first book.
+Future<bool> _webViewAvailable() async {
+  if (!Platform.isAndroid) return true;
+  if (_hasWebView == true) return true;
+  try {
+    _hasWebView = await InAppWebViewController.getCurrentWebViewPackage() != null;
+  } catch (e) {
+    AnxLog.warning('Reader: could not check the system WebView: $e');
+    return true;
+  }
+  return _hasWebView!;
+}
+
 Future<void> pushToReadingPage(
   WidgetRef ref,
   BuildContext context,
@@ -381,6 +398,10 @@ Future<void> pushToReadingPage(
       );
       return;
     }
+  }
+  if (!await _webViewAvailable()) {
+    if (context.mounted) AnxToast.show(L10n.of(context).mgWebViewMissing);
+    return;
   }
   if (await _settleOpenReader(book, hasTarget: cfi != null || href != null)) return;
   final storeKey = book.storeKey;

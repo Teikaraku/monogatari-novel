@@ -65,7 +65,7 @@ Future<void> main() async {
 
   // If no migration needed, initialize paths normally
   if (!_needsMigration) {
-    initBasePath();
+    await initBasePath();
     AnxLog.init();
     AnxError.init();
     await DBHelper().initDB();
@@ -279,7 +279,7 @@ class _MigrationWrapperState extends State<_MigrationWrapper> {
 
   Future<void> _onMigrationComplete() async {
     // Initialize paths and DB after migration
-    initBasePath();
+    await initBasePath();
     AnxLog.init();
     AnxError.init();
     await DBHelper().initDB();

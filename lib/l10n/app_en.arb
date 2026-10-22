@@ -1237,5 +1237,6 @@
   "mgUpdateNow": "Update",
   "mgUpdateInstall": "Install",
   "mgUpdateDownloaded": "Downloaded and verified",
-  "mgUpdateIosSign": "Sign the IPA before installing it."
+  "mgUpdateIosSign": "Sign the IPA before installing it.",
+  "mgWebViewMissing": "Reading needs the system WebView. Enable \"Android System WebView\" in Settings, then try again."
 }

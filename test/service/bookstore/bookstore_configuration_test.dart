@@ -155,6 +155,22 @@ void main() {
     });
   });
 
+  test('read events report the opened book and whether they were sent', () async {
+    final unconfigured = BookstoreApi(dio: dio, baseUrl: '', cacheDirectory: unavailableCache);
+    expect(await unconfigured.reportRead('123', install: 'test-install'), isFalse);
+    expect(adapter.requests, isEmpty);
+    final api = BookstoreApi(dio: dio, baseUrl: 'https://books.example.test');
+    expect(await api.reportRead('123', install: 'test-install'), isTrue);
+    final request = adapter.requests.single;
+    expect(request.uri.path, '/api/v1/events');
+    expect(request.queryParameters, {
+      'type': 'read',
+      'action': 'open',
+      'book': '123',
+      'install': 'test-install',
+    });
+  });
+
   test('unconfigured volume open and reopen never begin a download or inspect UI state', () async {
     final library = StoreLibrary(dio: dio);
     final detail = StoreBookDetail.fromJson({

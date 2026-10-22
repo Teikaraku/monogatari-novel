@@ -1195,5 +1195,6 @@
   "mgUpdateNow": "立即更新",
   "mgUpdateInstall": "安装",
   "mgUpdateDownloaded": "已下载并校验",
-  "mgUpdateIosSign": "IPA 需要自行签名后安装。"
+  "mgUpdateIosSign": "IPA 需要自行签名后安装。",
+  "mgWebViewMissing": "阅读需要系统 WebView，请在系统设置中启用「Android System WebView」后再试"
 }

@@ -88,6 +88,31 @@
         return;
       }
 
+      // System WebViews older than Chrome 76 (un-updated Android 8 and 9 phones) lack these Blob methods,
+      // which the book loader calls; without them the page stays blank.
+      const read = (blob, method) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader[method](blob);
+      });
+      if (!Blob.prototype.arrayBuffer) {
+        Blob.prototype.arrayBuffer = function () { return read(this, 'readAsArrayBuffer'); };
+      }
+      if (!Blob.prototype.text) {
+        Blob.prototype.text = function () { return read(this, 'readAsText'); };
+      }
+      // Chrome before 74 has no Intl.Locale; the reader only needs a book's language subtag from it.
+      if (!Intl.Locale) {
+        Intl.Locale = function (tag) {
+          const parts = String(tag).split(/[-_]/);
+          this.baseName = String(tag);
+          this.language = (parts[0] || '').toLowerCase();
+          this.script = parts.find((part, i) => i > 0 && part.length === 4);
+          this.region = parts.find((part, i) => i > 0 && (part.length === 2 || /^\d{3}$/.test(part)));
+        };
+        Intl.Locale.prototype.toString = function () { return this.baseName; };
+      }
       await loadScript('./dist/bundle.js', { type: 'module' });
       await loadScript('./dist/pdf-legacy.js', { async: false, defer: false });
     })();

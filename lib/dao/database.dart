@@ -130,13 +130,46 @@ class DBHelper {
 
   DBHelper._internal();
 
-  Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await initDB();
-    return _database!;
+  static Future<Database>? _opening;
+
+  /// Set by a migration that needs DAOs; they run once the database has finished opening, because a DAO
+  /// call during the migration would open the same database again and fail the first open.
+  static bool _coverCheckPending = false;
+
+  /// The one open database. Every caller shares the same open, including one still in progress.
+  Future<Database> get database {
+    if (_database != null) return Future.value(_database!);
+    return _opening ??= _open();
   }
 
-  Future<Database> initDB() async {
+  Future<Database> _open() async {
+    try {
+      final db = await _openDatabase();
+      _database = db;
+      if (_coverCheckPending) {
+        _coverCheckPending = false;
+        _restoreMissingCovers();
+      }
+      return db;
+    } finally {
+      _opening = null;
+    }
+  }
+
+  /// Opens the database (once) and runs any pending migration.
+  Future<Database> initDB() => database;
+
+  static void _restoreMissingCovers() {
+    bookDao.selectBooks(includeStore: true).then((books) {
+      for (var book in books) {
+        if (!File(book.coverFullPath).existsSync()) {
+          resetBookCover(book);
+        }
+      }
+    });
+  }
+
+  Future<Database> _openDatabase() async {
     int dbVersion = currentDbVersion;
     switch (AnxPlatform.type) {
       case AnxPlatformEnum.macos:
@@ -178,6 +211,7 @@ class DBHelper {
   static Future<void> close() async {
     await _database?.close();
     _database = null;
+    _opening = null;
   }
 
   /// Checkpoint WAL to merge data into main database file
@@ -375,41 +409,40 @@ class DBHelper {
         await db
             .execute("UPDATE tb_books SET cover_path = cover_path || '.png'");
 
+        // Files of books from before this version: a new database has none.
         final basePath = getBasePath('');
         final fileDir = Directory('$basePath/file');
         final coverDir = Directory('$basePath/cover');
-        fileDir.listSync().forEach((element) {
-          if (element is File) {
-            final path = element.path;
-            String pathAfterReplace = path.replaceAll(' ', '_');
-            int endIndex =
-                (pathAfterReplace.length < 72) ? pathAfterReplace.length : 72;
-            final newPath = '${pathAfterReplace.substring(0, endIndex)}.epub';
-            element.rename(newPath);
-          }
-        });
-        coverDir.listSync().forEach((element) {
-          if (element is File) {
-            final path = element.path;
-            String pathAfterReplace = path.replaceAll(' ', '_');
-            int endIndex =
-                (pathAfterReplace.length < 72) ? pathAfterReplace.length : 72;
-            final newPath = '${pathAfterReplace.substring(0, endIndex)}.png';
-            element.rename(newPath);
-          }
-        });
+        if (oldVersion != 0 && fileDir.existsSync()) {
+          fileDir.listSync().forEach((element) {
+            if (element is File) {
+              final path = element.path;
+              String pathAfterReplace = path.replaceAll(' ', '_');
+              int endIndex =
+                  (pathAfterReplace.length < 72) ? pathAfterReplace.length : 72;
+              final newPath = '${pathAfterReplace.substring(0, endIndex)}.epub';
+              element.rename(newPath);
+            }
+          });
+        }
+        if (oldVersion != 0 && coverDir.existsSync()) {
+          coverDir.listSync().forEach((element) {
+            if (element is File) {
+              final path = element.path;
+              String pathAfterReplace = path.replaceAll(' ', '_');
+              int endIndex =
+                  (pathAfterReplace.length < 72) ? pathAfterReplace.length : 72;
+              final newPath = '${pathAfterReplace.substring(0, endIndex)}.png';
+              element.rename(newPath);
+            }
+          });
+        }
         continue case3;
       case3:
       case 3:
         // remove former book style
         Prefs().removeBookStyle();
-        bookDao.selectBooks(includeStore: true).then((books) {
-          for (var book in books) {
-            if (!File(book.coverFullPath).existsSync()) {
-              resetBookCover(book);
-            }
-          }
-        });
+        if (oldVersion != 0) _coverCheckPending = true;
         continue case4;
       case4:
       case 4:

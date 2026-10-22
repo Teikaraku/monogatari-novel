@@ -87,6 +87,29 @@ void main() {
     expect(await storeBookTagDao.storeIdToTagIds(), isEmpty);
   });
 
+  test('creating a new database never reaches back into DBHelper while it opens', () async {
+    // On Android a DAO call during onCreate opens the same file a second time; the native plugin then
+    // rolls back the first open and the app never gets past its launch screen.
+    sqfliteFfiInit();
+    final db = await databaseFactoryFfi.openDatabase(
+      inMemoryDatabasePath,
+      options: OpenDatabaseOptions(
+        version: currentDbVersion,
+        onCreate: (db, version) => DBHelper().onUpgradeDatabase(db, 0, version),
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(pathProviderCalls, isEmpty);
+    await _expectStoreTagSchema(db);
+    await db.close();
+  });
+
+  test('concurrent first opens share one database', () async {
+    final opens = await Future.wait([DBHelper().database, DBHelper().database, DBHelper().initDB()]);
+    expect(identical(opens[0], opens[1]) && identical(opens[1], opens[2]), isTrue);
+    expect(opens[0].isOpen, isTrue);
+  });
+
   test('version 8 upgrade creates the table and preserves existing records', () async {
     sqfliteFfiInit();
     final databasePath = p.join(directory.path, 'databases', 'app_database.db');

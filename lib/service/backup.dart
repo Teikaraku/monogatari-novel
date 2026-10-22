@@ -100,9 +100,9 @@ Future<void> importBackup() async {
     _copyDirectorySync(Directory('$extractPath${separator}font'), getFontDir(path: docPath));
     _copyDirectorySync(Directory('$extractPath${separator}bgimg'), getBgimgDir(path: docPath));
 
-    DBHelper.close();
+    await DBHelper.close();
     _copyDirectorySync(Directory('$extractPath${separator}databases'), await getAnxDataBasesDir());
-    DBHelper().initDB();
+    await DBHelper().initDB();
 
     await _restorePrefsFromBackup(extractPath);
     AnxLog.info('importBackup: success');

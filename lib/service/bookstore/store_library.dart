@@ -193,38 +193,37 @@ class StoreLibrary {
 
   String _volumePath(String storeId, int n, int mtime) => 'store/$storeId/$n-$mtime.epub';
 
-  Future<void> _recordOpened(StoreBook book, int volumes, int n) async {
+  /// Updates the series row, inserting it when missing. Android 8 and 9 ship SQLite older than 3.24,
+  /// which has no UPSERT (`ON CONFLICT ... DO UPDATE`), so this is an update followed by an insert.
+  static Future<void> _upsertSeries(Map<String, Object?> values) async {
     final db = await DBHelper().database;
-    final now = DateTime.now().toIso8601String();
-    await db.rawInsert('''
-      INSERT INTO tb_store_books (store_id, title, author, cover_url, volumes, in_shelf, last_volume, last_read_time)
-      VALUES (?, ?, ?, ?, ?, 0, ?, ?)
-      ON CONFLICT(store_id) DO UPDATE SET
-        title = excluded.title, author = excluded.author, cover_url = excluded.cover_url,
-        volumes = excluded.volumes, last_volume = excluded.last_volume,
-        last_read_time = excluded.last_read_time
-    ''', [book.id, book.title, book.author, book.coverLarge ?? book.cover, volumes, n, now]);
+    await db.transaction((txn) async {
+      final changed = await txn.update('tb_store_books', values, where: 'store_id = ?', whereArgs: [values['store_id']]);
+      if (changed == 0) await txn.insert('tb_store_books', {'in_shelf': 0, ...values});
+    });
   }
 
+  Future<void> _recordOpened(StoreBook book, int volumes, int n) => _upsertSeries({
+        'store_id': book.id,
+        'title': book.title,
+        'author': book.author,
+        'cover_url': book.coverLarge ?? book.cover,
+        'volumes': volumes,
+        'last_volume': n,
+        'last_read_time': DateTime.now().toIso8601String(),
+      });
+
   Future<void> toggleShelf(WidgetRef ref, StoreBook book) async {
-    final db = await DBHelper().database;
     final inShelf = ref.read(storeShelfProvider).contains(book.id);
-    final now = DateTime.now().toIso8601String();
-    await db.rawInsert('''
-      INSERT INTO tb_store_books (store_id, title, author, cover_url, volumes, in_shelf, shelf_time)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(store_id) DO UPDATE SET
-        title = excluded.title, author = excluded.author, cover_url = excluded.cover_url,
-        volumes = excluded.volumes, in_shelf = excluded.in_shelf, shelf_time = excluded.shelf_time
-    ''', [
-      book.id,
-      book.title,
-      book.author,
-      book.coverLarge ?? book.cover,
-      book.volumes,
-      inShelf ? 0 : 1,
-      inShelf ? null : now
-    ]);
+    await _upsertSeries({
+      'store_id': book.id,
+      'title': book.title,
+      'author': book.author,
+      'cover_url': book.coverLarge ?? book.cover,
+      'volumes': book.volumes,
+      'in_shelf': inShelf ? 0 : 1,
+      'shelf_time': inShelf ? null : DateTime.now().toIso8601String(),
+    });
     await ref.read(storeShelfProvider.notifier).load();
     if (StoreConfig.configured) {
       unawaited(BookstoreApi.instance.reportShelf(book.id, added: !inShelf, install: _installId()));
